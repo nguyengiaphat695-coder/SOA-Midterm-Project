@@ -1,0 +1,23 @@
+digraph UseCase {
+  graph [label="Use Case Diagram — Phân hệ đóng học phí iBanking",labelloc=t,fontsize=20,rankdir=LR,pad=.3,ranksep=1.2,nodesep=.3,bgcolor=white,fontname="Arial"];
+  node [fontname="Arial",fontsize=11];
+  payer [label="Người dùng iBanking\n(Người nộp tiền)",shape=box,style=rounded];
+  email [label="Hệ thống gửi email\n(Mailpit / SMTP)",shape=box,style=rounded];
+  subgraph cluster_system {
+    label="iBanking Tuition Payment System"; color="#A5B4FC"; style="rounded";
+    node [shape=ellipse,style=filled,fillcolor="#EFF6FF",color="#6478C8"];
+    login [label="Đăng nhập"];
+    account [label="Xem tài khoản / số dư"];
+    history [label="Xem lịch sử giao dịch"];
+    lookup [label="Tra cứu học phí theo MSSV"];
+    pay [label="Thanh toán toàn bộ học phí"];
+    verify [label="Xác thực OTP"];
+    requestotp [label="Gửi OTP qua email"];
+    receipt [label="Gửi email xác nhận"];
+  }
+  payer -> login [dir=none];payer -> account [dir=none];payer -> history [dir=none];payer -> lookup [dir=none];payer -> pay [dir=none]; payer -> verify [dir=none];
+  pay -> requestotp [style=dashed,label="«include»",arrowhead=vee];
+  pay -> verify [style=dashed,label="«include»",arrowhead=vee];
+  receipt -> pay [style=dashed,label="«extend» [successful payment]",arrowhead=vee];
+  requestotp -> email [dir=none];receipt -> email [dir=none];
+}
