@@ -1,23 +1,16 @@
-# Checklist rubric CS504070 (đối chiếu bài và các bài test)
+# Đối chiếu tám yêu cầu trong đề
 
-| # | Rubric / điểm tối đa | Đã được bổ sung trong source | Minh chứng cần demo/xác nhận |
+Không tự gán trọng số hoặc bảo đảm điểm số; kết quả chấm do giảng viên quyết định.
+
+| # | Yêu cầu | Nội dung bàn giao | Minh chứng nghiệm thu |
 |---|---|---|---|
-| 1 | Analysis/UML (1.0) | Use Case + ERD SVG/DOT, phân tích nghiệp vụ | Mở sơ đồ, giải thích các quan hệ và external actor |
-| 2 | Microservices (1.5) | 3 FastAPI service, 3 database, Nginx Gateway, SMTP Mailpit, Architecture SVG | `docker compose ps`, diagram, theo dõi API / DB ownership |
-| 3 | REST API (1.0) | `REST_API_Design.md` đồng bộ code, request/response, status | Login, GET tuition, create/confirm/verify, GET history, lỗi 401/409/422 |
-| 4 | Persistence (1.0) | SQL init 3 DB, FK nội bộ, constraints, sample seed | `docker compose logs postgres-db`, kiểm tra các bảng và balances |
-| 5 | Workflow (2.0) | User login, payer read-only, MSSV, all-or-nothing, OTP SMTP, receipt, history | Full success demo + email Mailpit, OTP fail/expire/cancel |
-| 6 | Concurrency (1.5) | `FOR UPDATE`, immutable PAID, exclusive reservation, unique account_debits, saga/recovery | Chạy `python tests/test_concurrency.py` trên **DB mới**; chụp PASS cases |
-| 7 | UI (0.5) | Frontend login → search → confirm + terms → OTP → history | Mở `localhost:8080`, đi qua toàn bộ luồng |
-| 8 | Docs/deploy/demo (1.5) | README, diagrams, scripts, Docker Compose, test | Thầy clone, chạy Docker, demo lại được |
+| 1 | Phân tích nghiệp vụ và dữ liệu, Use Case và ERD | ANALYSIS.md, diagrams/usecase.*, diagrams/erd.* | BR01–BR12, UC01–UC08, các bảng/quan hệ |
+| 2 | Thiết kế microservices và giao tiếp | DESIGN_DECISIONS.md, diagrams/microservices.*, Compose | Ba service độc lập, ba database, HTTP, SMTP, gateway |
+| 3 | Thiết kế REST API | REST_API_Design.md, openapi/*.json | URI, method, input/output, HTTP status và quyền truy cập |
+| 4 | Hiện thực CSDL SQL/NoSQL | database/init/*.sql | Khởi tạo seed, PK/FK/unique/check |
+| 5 | Hiện thực service và API | services/*/main.py | Đăng nhập, tra cứu, xác nhận, OTP, debit, PAID, history, email |
+| 6 | Transaction và concurrency | FOR UPDATE, ledger, reservation, advisory lock, retry/cleanup | Hai case bắt buộc, mất phản hồi debit, lỗi release, OTP hết hạn |
+| 7 | Giao diện web tích hợp API | frontend/, gateway/ | Thông tin người nộp chỉ đọc, nhập MSSV, điều khoản, OTP, kết quả, tiếp tục lịch sử |
+| 8 | Tài liệu và trình diễn | README, DEMO_SCRIPT.md, TEST_RESULTS.md | Cài mới chạy được, demo lặp lại và giải thích cơ chế |
 
-**Lưu ý:** đây là checklist những phần đã *được lập trình/tạo tài liệu*, không đồng nghĩa với chứng nhận đã test E2E. Tại môi trường sửa code không có Docker/PostgreSQL đang chạy, cần chạy bài test tích hợp trên máy có Docker. Kết quả điểm do giảng viên đánh giá.
-
-## Ưu tiên trước ngày nộp
-
-1. Chạy `docker compose up -d --build` và kiểm tra http://localhost:8080 + http://localhost:8025.
-2. Chạy `python -m unittest discover -s tests -p test_static_contracts.py -v`.
-3. Chạy integration test với **database seed mới**, xem hai PASS và các assertion; sửa lỗi môi trường nếu có.
-4. Mở SVG của 3 biểu đồ, đối chiếu với source và đề.
-5. Demo lại luồng end-to-end và quay video/chụp màn hình làm bằng chứng.
-6. Nộp ZIP source (không commit `.env`, không gửi khóa thật, không nộp volume DB).
+Trước khi nộp: chạy test-runner, chạy hai bài HTTP+Mailpit trên seed mới, demo thành công/OTP sai/thiếu tiền, kiểm tra mã nhóm/thành viên nếu báo cáo môn học yêu cầu, đóng gói source không kèm secrets thật hay volume database.

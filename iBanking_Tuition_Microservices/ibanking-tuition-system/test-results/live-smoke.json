@@ -1,0 +1,19 @@
+{
+  "gateway": "HTTP 200",
+  "swagger_and_openapi": "all 3 services OK",
+  "authentication": "401 for missing/invalid JWT",
+  "payer_phone": "present",
+  "balances": {
+    "nguyenvana": 3500000,
+    "tranthib": 20000000,
+    "doquangd": 11300000
+  },
+  "tuition_statuses": [
+    "PAID",
+    "UNPAID",
+    "PAID"
+  ],
+  "successful_payments": 2,
+  "receipt_emails": 2,
+  "scope": "Read-only HTTP checks after the assistant executed both full-stack concurrency tests."
+}

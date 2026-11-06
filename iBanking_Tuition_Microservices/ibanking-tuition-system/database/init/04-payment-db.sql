@@ -14,6 +14,11 @@ CREATE TABLE transactions (
     failure_reason TEXT,
     processing_started_at TIMESTAMPTZ,
     notification_sent_at TIMESTAMPTZ,
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT (now()+interval '8 minutes'),
+    otp_expires_at TIMESTAMPTZ,
+    terms_accepted_at TIMESTAMPTZ,
+    release_pending BOOLEAN NOT NULL DEFAULT TRUE,
+    retry_after TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     completed_at TIMESTAMPTZ,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -22,6 +27,7 @@ CREATE TABLE transactions (
 CREATE UNIQUE INDEX uq_success_tuition ON transactions(tuition_fee_id) WHERE status='SUCCESS';
 CREATE INDEX idx_tx_payer ON transactions(payer_id,created_at DESC);
 CREATE INDEX idx_tx_recovery ON transactions(status,processing_started_at);
+CREATE INDEX idx_tx_retry ON transactions(retry_after);
 CREATE TABLE otps (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     transaction_id UUID NOT NULL UNIQUE REFERENCES transactions(id) ON DELETE CASCADE,
