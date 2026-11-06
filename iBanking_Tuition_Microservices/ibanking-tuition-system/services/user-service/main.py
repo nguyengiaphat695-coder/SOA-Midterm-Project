@@ -12,7 +12,8 @@ from psycopg2.extras import RealDictCursor
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
-app = FastAPI(title='iBanking User & Account Service', version='2.0.0')
+app = FastAPI(title='iBanking User & Account Service', version='3.0.0',
+              docs_url='/docs/user', redoc_url='/redoc/user', openapi_url='/openapi/user.json')
 DB_URL = os.environ.get('DATABASE_URL', '')
 JWT_SECRET = os.environ.get('JWT_SECRET', '')
 INTERNAL_TOKEN = os.environ.get('INTERNAL_API_TOKEN', '')
@@ -47,7 +48,7 @@ def require_user(authorization: str | None = Header(default=None)) -> dict:
         payload = jwt.decode(authorization[7:], JWT_SECRET, algorithms=['HS256'], options={'require':['exp','sub']})
         UUID(payload['sub'])
         return payload
-    except (jwt.InvalidTokenError, KeyError, ValueError):
+    except (jwt.InvalidTokenError, KeyError, ValueError, TypeError):
         raise HTTPException(401, 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn')
 
 def require_internal(x_service_token: str | None = Header(default=None)):

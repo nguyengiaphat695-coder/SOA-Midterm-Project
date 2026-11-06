@@ -1,7 +1,7 @@
 @echo off
 cd /d "%~dp0"
 echo === iBanking TDTU Demo ===
-docker compose up -d --build
+docker compose up -d --build --wait --wait-timeout 180
 if errorlevel 1 (
   echo Docker Compose that bai. Kiem tra Docker Desktop dang chay.
   pause

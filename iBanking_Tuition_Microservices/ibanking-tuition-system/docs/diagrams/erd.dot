@@ -6,8 +6,8 @@ digraph ERD {
   ACCOUNT [label="{ACCOUNT (user_db)|PK id : UUID\lFK user_id : UUID\laccount_number : UNIQUE\lbalance : NUMERIC(18,0)\lis_default : BOOLEAN\l}"];
   DEBIT [label="{ACCOUNT_DEBIT (user_db)|PK transaction_id : UUID\lFK account_id : UUID\lpayer_id : UUID\lamount : NUMERIC(18,0)\l}"];
   STUDENT [label="{STUDENT (tuition_db)|PK student_code : VARCHAR\lfull_name : VARCHAR\lfaculty : VARCHAR\lmajor : VARCHAR\l}"];
-  FEE [label="{TUITION_FEE (tuition_db)|PK id : UUID\lFK student_code : VARCHAR\lsemester : VARCHAR\lamount : NUMERIC(18,0)\lstatus : UNPAID/PENDING/PROCESSING/PAID\lreserved_by_transaction_id : UUID\lreservation_expires_at : TIMESTAMPTZ\lpaid_by_transaction_id : UUID UNIQUE\lUNIQUE(student_code,semester)\l}"];
-  TX [label="{TRANSACTION (payment_db)|PK id : UUID\lpayer_id : UUID logical\laccount_id : UUID logical\ltuition_fee_id : UUID logical\lstudent_code : VARCHAR snapshot\lstudent_name : VARCHAR snapshot\lsemester : VARCHAR snapshot\lamount : NUMERIC(18,0)\lstatus : VARCHAR\lidempotency_key : VARCHAR\lUNIQUE(payer_id,idempotency_key)\l}"];
+  FEE [label="{TUITION_FEE (tuition_db)|PK id : UUID\lFK student_code : VARCHAR\lsemester : VARCHAR\lamount : NUMERIC(18,0)\lstatus : UNPAID/PENDING_PAYMENT/PROCESSING/PAID\lreserved_by_transaction_id : UUID\lreservation_expires_at : TIMESTAMPTZ\lpaid_by_transaction_id : UUID UNIQUE\lUNIQUE(student_code,semester)\l}"];
+  TX [label="{TRANSACTION (payment_db)|PK id : UUID\lpayer_id : UUID logical\laccount_id : UUID logical\ltuition_fee_id : UUID logical\lstudent_code : VARCHAR snapshot\lstudent_name : VARCHAR snapshot\lsemester : VARCHAR snapshot\lamount : NUMERIC(18,0)\lstatus : VARCHAR\lidempotency_key : VARCHAR\lexpires_at : TIMESTAMPTZ\lotp_expires_at : TIMESTAMPTZ\lterms_accepted_at : TIMESTAMPTZ\lrelease_pending : BOOLEAN\lretry_after : TIMESTAMPTZ\lcompleted_at : TIMESTAMPTZ\lUNIQUE(payer_id,idempotency_key)\l}"];
   OTP [label="{OTP (payment_db)|PK id : UUID\lFK transaction_id : UUID UNIQUE\lcode_hmac : VARCHAR\lcode_fingerprint : UNIQUE\lexpires_at : TIMESTAMPTZ\lused : BOOLEAN\lattempts_count : INTEGER\l}"];
   USER -> ACCOUNT [label="1 : N",arrowhead=crow];
   ACCOUNT -> DEBIT [label="1 : N",arrowhead=crow];
@@ -18,3 +18,4 @@ digraph ERD {
   TX -> OTP [label="1 : 0..1",arrowhead=normal];
   TX -> DEBIT [label="1 : 0..1 (logical)",style=dashed,arrowhead=normal];
 }
+

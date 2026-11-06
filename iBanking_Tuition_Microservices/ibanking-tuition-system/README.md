@@ -1,114 +1,131 @@
-# iBanking TDTU — Phân hệ đóng học phí (Microservices Demo)
+# iBanking TDTU — Phân hệ đóng học phí
 
-**Dự án môn CS504070 – Kiến trúc hướng dịch vụ, HK1/2026–2027.** Đây là **mô phỏng phục vụ học tập**, KHÔNG phải ứng dụng ngân hàng thật, không dùng tiền thật.
+Dự án giữa kỳ môn CS504070 — Kiến trúc hướng dịch vụ, HK1/2026–2027.
+Ứng dụng mô phỏng: số dư, tài khoản và học phí là dữ liệu demo.
 
-## 1. Thành phần
+## 1. Chạy nhanh
 
-- **Frontend + Nginx API Gateway:** http://localhost:8080 — giao diện và một đầu mối REST duy nhất.
-- **User/Account Service:** xác thực username/password qua JWT, thông tin người nộp, số dư, debit ledger idempotent.
-- **Tuition Service:** tra cứu MSSV, khoản học phí, giữ chỗ theo transaction, đánh dấu `PAID` có điều kiện.
-- **Payment Service:** tạo giao dịch, email OTP 5 phút, xác thực 1 lần, quản lý Saga, lịch sử, kiểm tra/khôi phục giao dịch dở dang.
-- **PostgreSQL:** 3 database độc lập (`user_db`, `tuition_db`, `payment_db`) với foreign keys **chỉ trong mỗi database**.
-- **Mailpit:** http://localhost:8025 — hộp thư thử nghiệm nhận OTP và email xác nhận thành công (không gửi email ra Internet).
+Cần Docker Desktop đang chạy Linux containers và Docker Compose v2.
+Giải nén, mở terminal tại thư mục chứa `docker-compose.yml`:
 
-Tài liệu: `docs/REST_API_Design.md`, `docs/DESIGN_DECISIONS.md`, `docs/DEMO_SCRIPT.md`, `docs/RUBRIC_CHECKLIST.md`. Các sơ đồ `.svg`, `.png`, `.dot` (có thể sửa bằng Graphviz) ở `docs/diagrams/`.
-
-## 2. Khởi chạy Windows / macOS / Linux
-
-Yêu cầu: Docker Desktop (hoặc Docker Engine và Docker Compose plugin). Chạy các lệnh sau tại **thư mục chứa file `docker-compose.yml`**:
-
-```bash
-docker compose up -d --build
+```sh
+docker compose up -d --build --wait --wait-timeout 180
 docker compose ps
 ```
 
-Mở http://localhost:8080 để dùng hệ thống, http://localhost:8025 để xem OTP demo.
+- Giao diện: http://localhost:8080
+- Email demo/Mailpit: http://localhost:8025
+- Swagger: http://localhost:8080/docs/user, http://localhost:8080/docs/tuition, http://localhost:8080/docs/payment
+- ReDoc: thay `/docs/` bằng `/redoc/`.
 
-**Thông tin đăng nhập demo** (`password` đều là `123456`):
+Nếu cổng đang được ứng dụng khác dùng, sao chép `.env.example` thành `.env`, đổi `WEB_PORT` và `MAIL_UI_PORT`, rồi chạy lại.
 
-| Username | Tài khoản | Số dư gốc | Email demo |
+Bản này dùng Compose project `ibanking-tuition-v3`, tạo volume mới cho schema v3. Không dùng lại volume bản cũ. Thay đổi `.env` về mật khẩu PostgreSQL sau khi volume đã tạo không tự đổi mật khẩu trong database.
+
+## 2. Tài khoản và dữ liệu mẫu
+
+Mật khẩu tất cả tài khoản: **123456**.
+
+| Username | Họ tên | Số dư ban đầu | Email |
 |---|---|---:|---|
-| `nguyenvana` | A | 15.000.000 đ | user.a@demo.local |
-| `tranthib` | B | 20.000.000 đ | user.b@demo.local |
-| `phaminhc` | C | 2.000.000 đ | user.c@demo.local |
-| `doquangd` | D | 20.000.000 đ | user.d@demo.local |
+| nguyenvana | Nguyễn Văn A | 15.000.000 đ | user.a@demo.local |
+| tranthib | Trần Thị B | 20.000.000 đ | user.b@demo.local |
+| phaminhc | Phạm Minh C | 2.000.000 đ | user.c@demo.local |
+| doquangd | Đỗ Quang D | 20.000.000 đ | user.d@demo.local |
 
-Các MSSV demo: `523H0120` (11.500.000 đ, chưa thanh toán); `523H0121` (9.800.000 đ, chưa thanh toán); `523H0122` (7.400.000 đ, đã thanh toán); `523H0123` (8.700.000 đ, chưa thanh toán).
+| MSSV | Học phí | Trạng thái ban đầu |
+|---|---:|---|
+| 523H0120 | 11.500.000 đ | Chưa thanh toán |
+| 523H0121 | 9.800.000 đ | Chưa thanh toán |
+| 523H0122 | 7.400.000 đ | Đã thanh toán |
+| 523H0123 | 8.700.000 đ | Chưa thanh toán |
 
-Lưu ý: dữ liệu thay đổi sau mỗi lần thanh toán và tồn tại trong Docker volume. **Chỉ khi cần làm mới dữ liệu demo**, sau khi đã sao lưu nếu cần, chạy:
+## 3. Luồng sử dụng
 
-```bash
-docker compose down -v  # XÓA TOÀN BỘ DỮ LIỆU LƯU TRONG VOLUME DEMO
-docker compose up -d --build
+1. Đăng nhập `nguyenvana / 123456`.
+2. Tra cứu `523H0120`, chọn Thanh toán. Thông tin người nộp gồm tên, điện thoại, email lấy từ tài khoản và chỉ cho đọc.
+3. Kiểm tra sinh viên, học phí, số dư; đồng ý điều khoản rồi gửi OTP.
+4. Mở Mailpit, chọn email gửi đến `user.a@demo.local`, nhập mã sáu chữ số.
+5. Kết quả thành công: số dư còn 3.500.000 đ, học phí đã thanh toán, lịch sử có SUCCESS và có email biên nhận.
+6. Có thể tải lại trang rồi chọn Tiếp tục trong lịch sử để nhập OTP. Nút Chi tiết cho xem mã, thời gian, trạng thái và lý do kết thúc.
+
+Giữ chỗ tối đa 8 phút từ khi tạo. OTP có hạn tối đa 5 phút và không vượt thời hạn giữ chỗ; giao diện hiển thị thời gian thực còn lại. OTP chỉ sử dụng thành công một lần. Năm lần nhập sai kết thúc giao dịch. Không thanh toán từng phần.
+
+## 4. Kiến trúc và dữ liệu
+
+| Thành phần | Trách nhiệm |
+|---|---|
+| Web + Nginx | Giao diện, định tuyến REST, Swagger/ReDoc |
+| User/Account Service | Username/password, JWT, thông tin người nộp, số dư và ghi nợ chống lặp |
+| Tuition Service | Sinh viên, khoản học phí, giữ chỗ độc quyền và trạng thái PAID |
+| Payment Service | Giao dịch, điều khoản, OTP, điều phối thanh toán, lịch sử, khôi phục, email |
+| PostgreSQL 15 | Ba database riêng; FK trong từng database, không ghi chéo database giữa service |
+| Mailpit | Nhận thư SMTP demo; có thể cấu hình SMTP thật qua `.env` khi cần |
+
+User/Account và Tuition dùng transaction PostgreSQL cục bộ và `SELECT ... FOR UPDATE`. Payment dùng Saga retry-forward: cùng transaction ID cho mọi lần thử, lưu trạng thái trước khi gọi dịch vụ và chỉ SUCCESS sau khi cả ghi nợ/học phí đã hoàn tất.
+
+Một khóa advisory trong PostgreSQL bảo đảm một giao dịch chỉ có một luồng điều phối tại một thời điểm. Cờ `release_pending` lưu bền việc cần mở lại học phí; worker thử lại cả khi payment đã FAILED/EXPIRED/CANCELLED. Trước khi mở lại, kiểm tra sổ ghi nợ. Giao dịch đã ghi nợ không tự động hết hạn/mở học phí. Chi tiết tại `docs/DESIGN_DECISIONS.md`.
+
+## 5. Kiểm thử
+
+### Kiểm thử với PostgreSQL riêng, không thay đổi dữ liệu demo
+
+```sh
+docker compose --profile test run --build --rm test-runner
 ```
 
-Đóng hệ thống mà không xóa dữ liệu: `docker compose down`. Xem lỗi: `docker compose logs -f payment-service` (hoặc `user-service`, `tuition-service`, `postgres-db`).
+Runner thực hiện kiểm thử tĩnh, hành vi và 15 bài tích hợp trên các database `ibk_test_*` được tạo riêng rồi xóa. PostgreSQL là thật; các API FastAPI được gọi trong tiến trình kiểm thử, SMTP được thay bằng hộp thư trong bộ nhớ để kiểm tra nội dung. Không nhầm bộ này với kiểm thử toàn bộ Nginx/Mailpit.
 
-## 3. Luồng demo trên giao diện
+### Kiểm thử toàn hệ thống HTTP + Mailpit
 
-1. Đăng nhập bằng `nguyenvana` / `123456`. Giao diện tự hiển thị tên, email, số dư người nộp (không cho sửa).
-2. Nhập MSSV `523H0120`, tra cứu học phí (được phép đóng cho sinh viên khác).
-3. Chọn **Thanh toán**, đọc tên SV, số tiền, người nộp và tích đồng ý điều khoản.
-4. Nhấn **Gửi OTP qua email**. Mở Mailpit tại http://localhost:8025, đọc email gửi tới `user.a@demo.local`.
-5. Quay lại giao diện, nhập 6 chữ số từ email, xác nhận (OTP chỉ còn hiệu lực tối đa 5 phút, mỗi OTP dùng một lần và thử sai tối đa 5 lần).
-6. Xem số dư đã trừ 11.500.000 đ còn 3.500.000 đ, trạng thái học phí `PAID`, lịch sử giao dịch `SUCCESS`, email xác nhận trong Mailpit.
-7. Thử tra cứu lại MSSV đã đóng: không thể thanh toán lần thứ hai. Thử user C (2.000.000 đ) và khoản học phí chưa đóng 9.800.000 đ: hệ thống trả lỗi không đủ số dư.
+Sau khi stack chạy, trên Python 3.11+:
 
-## 4. Automated tests
-
-**Kiểm tra tĩnh, không cần Docker:**
-
-```bash
-python -m unittest discover -s tests -p 'test_static_contracts.py' -v
-```
-
-**Kiểm tra concurrency tích hợp** (cần Docker chạy, database phải mới reset, sử dụng dữ liệu seed):
-
-```bash
+```sh
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
 python -m pip install -r tests/requirements.txt
 python tests/test_concurrency.py
 ```
 
-Hai case có assertion:
-1. Cùng tài khoản A, đồng thời xác thực thanh toán hai học phí 11.500.000 và 9.800.000 đ trên số dư 15.000.000: chỉ một lần debit thành công, số dư không âm.
-2. Tài khoản B và D cùng khởi tạo thanh toán MSSV `523H0123`: chỉ một bên giữ chỗ/thanh toán thành công, bên còn lại bị `409`, chỉ một tài khoản bị trừ tiền.
+Hai bài này dùng số dư/học phí seed của ứng dụng và thực sự thay đổi dữ liệu demo. Chạy trước demo thủ công hoặc dùng một Compose project/volume riêng. Cần dữ liệu seed ban đầu.
 
-**Quan trọng:** bộ integration test tiêu thụ và thay đổi dữ liệu demo. Chạy integration test trước khi demo thủ công hoặc reset volume **chỉ khi bạn chấp nhận xóa dữ liệu demo**. Kết quả test chỉ được xem là đã xác minh khi bạn chạy thành công trên máy của bạn.
+Chạy cục bộ những kiểm tra không cần database:
 
-## 5. Điểm kiểm soát transaction
-
-- Frontend không được tự quyết định `payer_id`, `account_id` hay `amount`: backend lấy danh tính từ JWT và học phí từ Tuition Service.
-- Service nội bộ chỉ mở trong Docker network, yêu cầu header `X-Service-Token` và không được expose qua gateway.
-- Tiền dùng `NUMERIC(18,0)` và Python integer để biểu diễn VND; số dư không được âm bởi constraint và khóa dòng `SELECT ... FOR UPDATE`.
-- `account_debits.transaction_id` là PK, đảm bảo cùng một giao dịch chỉ ghi nợ một lần; các lần retry không trừ lặp.
-- Mỗi khoản học phí có một transaction giữ chỗ. Khi bắt đầu xử lý, trạng thái sang `PROCESSING` và không tự giải phóng; worker retry để không mất ghi nhận sau khi đã trừ tiền.
-- Nếu trừ tiền thành công nhưng cập nhật học phí tạm thất bại: trả `PROCESSING`, worker thử lại; không khẳng định giao dịch thất bại và không cho thanh toán lại. Lỗi bất thường chuyển `REVIEW` để đối soát thủ công.
-- OTP không hiển thị qua API, lưu HMAC keyed và kiểm tra thời hạn, tối đa 5 lần thử, cờ used; mã đang hiệu lực không trùng nhau.
-
-## 6. Giới hạn ngoài phạm vi bài giữa kỳ
-
-- Không có cổng ngân hàng thật, sổ cái kép (double-entry ledger), hệ thống đối soát tự động độc lập, chống gian lận hoặc tuân thủ pháp lý ngân hàng.
-- Worker retry trong chính Payment Service chỉ phù hợp demo; production nên dùng durable queue, worker riêng, checkpoint, monitoring/alerting và quy trình xử lý `REVIEW`.
-- PostgreSQL dùng chung một server/credential quản trị cho ba DB để đơn giản hóa demo; production dùng tài khoản DB per-service với quyền tối thiểu, secret manager, TLS/mTLS, rate limiting, CSRF/XSS protections và kiểm thử bảo mật.
-- Frontend demo dùng `sessionStorage` JWT; production cần cân nhắc session cookie HttpOnly/SameSite, refresh-token và chính sách CSP/XSS.
-- Không công khai gateway/mailpit lên Internet khi còn sử dụng secrets mặc định trong Compose; chỉ bind `127.0.0.1` để demo cục bộ.
-
-## 7. Cấu trúc chính
-
-```text
-ibanking-tuition-system/
-  docker-compose.yml       # Postgres, 3 services, Nginx Gateway, Mailpit
-  .env.example              # Tùy chọn cấu hình secrets qua .env riêng
-  frontend/index.html      # UI toàn bộ workflow + lịch sử
-  gateway/default.conf     # /api/v1 routing; chặn /internal
-  database/init/           # 3 schemas + seed demo
-  services/user-service/   # auth + debit ledger
-  services/tuition-service/# fee reservation + paid
-  services/payment-service/# OTP + saga + retry + history
-  tests/                   # contract tests, two concurrency integration cases
-  docs/                    # REST, UML, design, demo, checklist
+```sh
+python -m pytest tests/test_static_contracts.py tests/test_payment_unit.py -v
+node tests/test_frontend.cjs
 ```
 
+Kết quả thực tế và phạm vi kiểm tra: `docs/TEST_RESULTS.md`. Các bài bị skip không được coi là đã đạt.
 
-## 8. Lưu ý bản sửa UUID
-Nếu đã chạy bản ZIP trước và test concurrency bị `FAILED`/`422`, dùng bản hotfix này và rebuild: `docker compose up -d --build`. Dữ liệu cũ không tự xóa. Để làm sạch riêng môi trường DEMO từ đầu, cần sao lưu nếu có dữ liệu cần giữ, sau đó chạy `docker compose down -v` (xóa volume PostgreSQL) rồi `docker compose up -d --build`. Sau khi reset, dùng giao diện thanh toán trước; bộ test concurrency sẽ thay đổi số dư và học phí.
+## 6. Dừng, xem lỗi và làm mới dữ liệu
+
+```sh
+docker compose logs --tail 100 payment-service
+docker compose logs --tail 100 postgres-db
+docker compose down
+```
+
+`down` giữ dữ liệu. Chỉ khi muốn xóa dữ liệu demo của project v3 để chạy lại từ seed:
+
+```sh
+docker compose down -v
+docker compose up -d --build --wait --wait-timeout 180
+```
+
+Đang PROCESSING: đợi worker khôi phục, xem lại lịch sử. REVIEW: cần kiểm tra sổ ghi nợ, payment và chủ giữ chỗ; không sửa số dư/trạng thái tùy ý. Hướng dẫn đối soát ở `docs/DESIGN_DECISIONS.md`.
+
+## 7. Tài liệu nộp và bảo vệ
+
+- `docs/ANALYSIS.md`: nghiệp vụ, quy tắc dữ liệu, use case, luồng lỗi.
+- `docs/diagrams/`: Use Case, ERD và Microservices Architecture, bản SVG/PNG/DOT.
+- `docs/REST_API_Design.md`: URI, HTTP method, request, response và status code.
+- `docs/openapi/`: hợp đồng OpenAPI xuất từ các service.
+- `docs/DESIGN_DECISIONS.md`: transaction, concurrency, phục hồi, bảo mật, liên hệ bài học.
+- `docs/RUBRIC_CHECKLIST.md`: đối chiếu đúng tám yêu cầu đề.
+- `docs/DEMO_SCRIPT.md`: trình diễn và câu hỏi bảo vệ.
+- `docs/TEST_RESULTS.md`: kết quả đã kiểm tra và giới hạn.
+- `docs/CHANGELOG_FIXES.md`: thay đổi từ ZIP người dùng cung cấp.
+
+Ứng dụng sử dụng tài khoản ngân hàng và tiền mô phỏng. Mailpit mặc định nhận email trong môi trường demo, không chuyển thư tới hộp thư Internet. SMTP có thể gửi lặp biên nhận nếu tiến trình dừng sau khi gửi mà chưa lưu xác nhận; Message-ID cố định giúp nhận diện cùng biên nhận, không phải bảo đảm SMTP gửi đúng một lần. Ngược lại, ghi nợ và thanh toán học phí được bảo vệ chống lặp bằng các ràng buộc và transaction tại database.

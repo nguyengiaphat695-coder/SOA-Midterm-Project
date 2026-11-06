@@ -1,0 +1,12 @@
+{
+  "date": "2026-11-06",
+  "origin": "Docker execution log supplied by user in chat",
+  "python": "3.11.18",
+  "postgres": "15-alpine",
+  "tests": 41,
+  "passed": 41,
+  "failed": 0,
+  "duration_seconds": 28.62,
+  "warnings": 1,
+  "scope": "26 static/isolated tests and 15 real PostgreSQL integration tests; SMTP captured in memory"
+}

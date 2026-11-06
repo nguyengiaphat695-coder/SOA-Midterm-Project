@@ -2,13 +2,14 @@
 Run once on seeded DB, before manually paying the sample fees. Destructive to sample balances.
 """
 import concurrent.futures
+import os
 import re
 import time
 import uuid
 import httpx
 
-BASE='http://localhost:8080'
-MAIL='http://localhost:8025'
+BASE=os.getenv('BASE_URL','http://localhost:8080')
+MAIL=os.getenv('MAIL_URL','http://localhost:8025')
 FEE_A='c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c33' # 11.5m
 FEE_B='d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d44' # 9.8m
 FEE_C='e2eebc99-9c0b-4ef8-bb6d-6bb9bd380e88' # 8.7m
@@ -39,7 +40,7 @@ def get_otp(tx_id):
     raise AssertionError('Không thấy OTP của transaction '+tx_id+' trong Mailpit')
 
 def send_otp(auth,tx_id):
-    r=httpx.post(BASE+f'/api/v1/payments/{tx_id}/confirm',headers=auth,timeout=15)
+    r=httpx.post(BASE+f'/api/v1/payments/{tx_id}/confirm',headers=auth,json={'acceptTerms':True},timeout=15)
     assert r.status_code==200, (r.status_code,r.text)
     assert r.json()['status']=='OTP_SENT'
     return get_otp(tx_id)

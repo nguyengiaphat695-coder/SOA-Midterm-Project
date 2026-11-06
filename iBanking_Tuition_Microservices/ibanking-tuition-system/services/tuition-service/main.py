@@ -8,9 +8,10 @@ import jwt
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, AwareDatetime
 
-app = FastAPI(title='iBanking Tuition Service',version='2.0.0')
+app = FastAPI(title='iBanking Tuition Service',version='3.0.0',
+             docs_url='/docs/tuition',redoc_url='/redoc/tuition',openapi_url='/openapi/tuition.json')
 DB_URL=os.getenv('DATABASE_URL','')
 JWT_SECRET=os.getenv('JWT_SECRET','')
 INTERNAL_TOKEN=os.getenv('INTERNAL_API_TOKEN','')
@@ -41,6 +42,9 @@ def internal(x_service_token: str | None=Header(default=None)):
 
 class ReservationBody(BaseModel):
     transaction_id: UUID
+
+class HoldBody(ReservationBody):
+    expires_at: AwareDatetime
 
 
 def same_uuid(db_value, requested_uuid):
@@ -82,20 +86,24 @@ def get_fee(tuition_id:UUID):
     return {'id':str(x['id']), 'mssv':x['student_code'], 'studentName':x['student_name'], 'semester':x['semester'],'amount':int(x['amount']),'status':x['status'], 'reservedBy':str(x['reserved_by_transaction_id']) if x['reserved_by_transaction_id'] else None,'reservedUntil':x['reservation_expires_at'],'paidBy':str(x['paid_by_transaction_id']) if x['paid_by_transaction_id'] else None}
 
 @app.post('/internal/tuitions/{tuition_id}/reserve',dependencies=[Depends(internal)])
-def reserve(tuition_id:UUID,body:ReservationBody):
+def reserve(tuition_id:UUID,body:HoldBody):
     with db() as conn:
         with conn.cursor() as cur:
             cur.execute('SELECT * FROM tuition_fees WHERE id=%s FOR UPDATE',(str(tuition_id),))
             r=cur.fetchone()
             if not r: raise HTTPException(404,'Khoản học phí không tồn tại')
             if r['status']=='PAID': raise HTTPException(409,'Học phí đã được thanh toán')
+            if body.expires_at <= datetime.now(timezone.utc):
+                raise HTTPException(409,'Giao dịch giữ chỗ đã hết hạn')
+            if body.expires_at > datetime.now(timezone.utc)+timedelta(minutes=9):
+                raise HTTPException(422,'Thời hạn giữ chỗ không hợp lệ')
             if same_uuid(r['reserved_by_transaction_id'], body.transaction_id) and r['status'] in ('PENDING_PAYMENT','PROCESSING'):
                 return {'status':r['status'],'reservedBy':str(body.transaction_id)}
             if r['status']=='PROCESSING':
                 raise HTTPException(409,'Đang xử lý giao dịch khác, không thể thanh toán trùng')
             if r['status']=='PENDING_PAYMENT' and r['reservation_expires_at'] and r['reservation_expires_at']>datetime.now(timezone.utc):
                 raise HTTPException(409,'Học phí đang được giữ chỗ bởi giao dịch khác')
-            until=datetime.now(timezone.utc)+timedelta(minutes=8)
+            until=body.expires_at
             cur.execute('''UPDATE tuition_fees SET status='PENDING_PAYMENT',reserved_by_transaction_id=%s,
                            reservation_expires_at=%s,updated_at=now() WHERE id=%s''',
                         (str(body.transaction_id),until,str(tuition_id)))
@@ -112,7 +120,7 @@ def start_processing(tuition_id:UUID,body:ReservationBody):
                 raise HTTPException(409,'Giao dịch không giữ chỗ khoản học phí này')
             if r['status']=='PROCESSING': return {'status':'PROCESSING'}
             if r['status']=='PAID' and same_uuid(r['paid_by_transaction_id'], body.transaction_id): return {'status':'PAID'}
-            if r['status']!='PENDING_PAYMENT' or r['reservation_expires_at']<datetime.now(timezone.utc):
+            if r['status']!='PENDING_PAYMENT' or not r['reservation_expires_at'] or r['reservation_expires_at']<=datetime.now(timezone.utc):
                 raise HTTPException(409,'Hết hạn giữ chỗ, vui lòng thanh toán lại')
             # PROCESSING does not automatically expire: recovery must finish or operator resolves.
             cur.execute("UPDATE tuition_fees SET status='PROCESSING',reservation_expires_at=NULL,updated_at=now() WHERE id=%s",(str(tuition_id),))
@@ -141,6 +149,8 @@ def release(tuition_id:UUID,body:ReservationBody):
             cur.execute('SELECT status,reserved_by_transaction_id FROM tuition_fees WHERE id=%s FOR UPDATE',(str(tuition_id),))
             r=cur.fetchone()
             if not r: raise HTTPException(404,'Khoản học phí không tồn tại')
+            if not same_uuid(r['reserved_by_transaction_id'], body.transaction_id):
+                return {'status':'NO_CHANGE'}
             if r['status']=='PAID':
                 raise HTTPException(409,'Không được mở lại học phí đã thanh toán')
             if same_uuid(r['reserved_by_transaction_id'], body.transaction_id):

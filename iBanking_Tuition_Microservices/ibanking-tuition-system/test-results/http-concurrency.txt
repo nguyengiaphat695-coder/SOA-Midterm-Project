@@ -1,0 +1,7 @@
+Observed execution on 2026-11-06, HTTP localhost:8080 and Mailpit localhost:8025.
+CASE 1: One 15m account, two different fees (11.5m + 9.8m), both OTP approved in parallel
+Verify responses: [(200, 'SUCCESS'), (422, 'Số dư không đủ tại thời điểm trừ tiền')]
+PASS CASE 1: ['SUCCESS', 'FAILED'] final balance 3500000
+CASE 2: Two account owners concurrently pay the SAME fee, only one reserved/paid
+PASS CASE 2: [201, 409] balances [20000000, 11300000] tuition PAID
+ALL CONCURRENCY INTEGRATION TESTS PASSED (against a real running Docker stack).

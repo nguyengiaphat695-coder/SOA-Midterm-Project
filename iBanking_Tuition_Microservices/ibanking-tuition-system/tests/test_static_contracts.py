@@ -12,10 +12,10 @@ ROOT=Path(__file__).resolve().parent.parent
 class StaticContracts(unittest.TestCase):
     def test_python_sources_parse(self):
         for file in ROOT.glob('services/*/main.py'):
-            ast.parse(file.read_text(),filename=str(file))
+            ast.parse(file.read_text(encoding='utf-8'),filename=str(file))
 
     def test_demo_hashes_match_password(self):
-        seed=(ROOT/'database/init/02-user-db.sql').read_text()
+        seed=(ROOT/'database/init/02-user-db.sql').read_text(encoding='utf-8')
         hashes=re.findall(r"pbkdf2_sha256\$600000\$[a-f0-9]{32}\$[a-f0-9]{64}",seed)
         self.assertEqual(len(hashes),4)
         for encoded in hashes:
@@ -24,9 +24,9 @@ class StaticContracts(unittest.TestCase):
             self.assertTrue(hmac.compare_digest(observed,bytes.fromhex(digest)))
 
     def test_money_and_idempotency_constraints(self):
-        user=(ROOT/'database/init/02-user-db.sql').read_text()
-        payment=(ROOT/'database/init/04-payment-db.sql').read_text()
-        tuition=(ROOT/'database/init/03-tuition-db.sql').read_text()
+        user=(ROOT/'database/init/02-user-db.sql').read_text(encoding='utf-8')
+        payment=(ROOT/'database/init/04-payment-db.sql').read_text(encoding='utf-8')
+        tuition=(ROOT/'database/init/03-tuition-db.sql').read_text(encoding='utf-8')
         self.assertIn('balance >= 0',user)
         self.assertIn('transaction_id UUID PRIMARY KEY',user)
         self.assertIn('UNIQUE(payer_id,idempotency_key)',payment)
@@ -35,7 +35,7 @@ class StaticContracts(unittest.TestCase):
 
     def test_uuid_values_from_database_match_pydantic_uuid(self):
         # psycopg2 may return a PostgreSQL UUID as plain text, while Pydantic returns uuid.UUID.
-        tuition=(ROOT/'services/tuition-service/main.py').read_text()
+        tuition=(ROOT/'services/tuition-service/main.py').read_text(encoding='utf-8')
         tree=ast.parse(tuition)
         normalize=next(node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name=='same_uuid')
         namespace={}
@@ -45,11 +45,11 @@ class StaticContracts(unittest.TestCase):
         self.assertTrue(namespace['same_uuid'](uuid_value,str(uuid_value)))
         self.assertFalse(namespace['same_uuid'](None,None))
         self.assertFalse(namespace['same_uuid'](str(uuid4()),uuid_value))
-        self.assertIn("str(a['user_id']) != str(body.payer_id)",(ROOT/'services/user-service/main.py').read_text())
+        self.assertIn("str(a['user_id']) != str(body.payer_id)",(ROOT/'services/user-service/main.py').read_text(encoding='utf-8'))
 
     def test_no_service_port_published(self):
-        compose=(ROOT/'docker-compose.yml').read_text()
-        self.assertIn('127.0.0.1:8080:80',compose)
+        compose=(ROOT/'docker-compose.yml').read_text(encoding='utf-8')
+        self.assertIn('127.0.0.1:${WEB_PORT:-8080}:80',compose)
         self.assertNotIn('3001:3001',compose)
         self.assertNotIn('3002:3002',compose)
         self.assertNotIn('3003:3003',compose)
