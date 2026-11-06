@@ -1,0 +1,25 @@
+digraph System {
+ graph [label="Microservices Architecture — iBanking Tuition Payment (local demo)",labelloc=t,fontsize=20,rankdir=TB,pad=.3,nodesep=.45,ranksep=.65,bgcolor=white,fontname="Arial",splines=polyline];
+ node [fontname="Arial",shape=box,style="rounded,filled",fillcolor="#EFF6FF",color="#637DC7"];
+ browser [label="Web Browser\nlocalhost:8080"];
+ gateway [label="Nginx API Gateway\nPublic /api/v1/* + static frontend",fillcolor="#DCEAFE"];
+ browser -> gateway [label="HTTP (local only)"];
+ subgraph cluster_services {label="Private Docker backend network"; style=rounded;color="#A5B4FC";
+  user [label="User & Account Service\nJWT authentication / ledger / balance",fillcolor="#EAF7ED"];
+  tuition [label="Tuition Service\nFee reservation / PAID guard",fillcolor="#EAF7ED"];
+  payment [label="Payment Orchestrator\nOTP / Saga / retry worker",fillcolor="#EAF7ED"];
+  userdb [label="user_db\nusers, accounts, account_debits",shape=cylinder,fillcolor="#F5F2FF"];
+  tuitiondb [label="tuition_db\nstudents, tuition_fees",shape=cylinder,fillcolor="#F5F2FF"];
+  paymentdb [label="payment_db\ntransactions, otps",shape=cylinder,fillcolor="#F5F2FF"];
+  mailpit [label="Mailpit SMTP\nOTP and confirmation email",fillcolor="#FEF3C7"];
+  user -> userdb [dir=both,label="SQL"];
+  tuition -> tuitiondb [dir=both,label="SQL"];
+  payment -> paymentdb [dir=both,label="SQL"];
+  payment -> user [dir=both,label="internal authenticated HTTP"];
+  payment -> tuition [dir=both,label="internal authenticated HTTP"];
+  payment -> mailpit [label="SMTP"];
+ }
+ gateway -> user [label="/auth, /users"];
+ gateway -> tuition [label="/tuitions"];
+ gateway -> payment [label="/payments, /transactions"];
+}

@@ -1,0 +1,20 @@
+digraph ERD {
+  graph [label="ERD logic — iBanking Tuition Payment",labelloc=t,fontsize=20,rankdir=LR,pad=.3,nodesep=.65,ranksep=1.0,fontname="Arial",bgcolor="white"];
+  node [shape=record,fontname="Arial",fontsize=11,style="filled",fillcolor="#EFF6FF",color="#4766A9"];
+  edge [fontname="Arial",fontsize=10,color="#4B5563",arrowsize=.7];
+  USER [label="{USER (user_db)|PK id : UUID\lusername : VARCHAR UNIQUE\lfull_name : VARCHAR\lphone : VARCHAR UNIQUE\lemail : VARCHAR UNIQUE\lpassword_hash : TEXT\l}"];
+  ACCOUNT [label="{ACCOUNT (user_db)|PK id : UUID\lFK user_id : UUID\laccount_number : UNIQUE\lbalance : NUMERIC(18,0)\lis_default : BOOLEAN\l}"];
+  DEBIT [label="{ACCOUNT_DEBIT (user_db)|PK transaction_id : UUID\lFK account_id : UUID\lpayer_id : UUID\lamount : NUMERIC(18,0)\l}"];
+  STUDENT [label="{STUDENT (tuition_db)|PK student_code : VARCHAR\lfull_name : VARCHAR\lfaculty : VARCHAR\lmajor : VARCHAR\l}"];
+  FEE [label="{TUITION_FEE (tuition_db)|PK id : UUID\lFK student_code : VARCHAR\lsemester : VARCHAR\lamount : NUMERIC(18,0)\lstatus : UNPAID/PENDING/PROCESSING/PAID\lreserved_by_transaction_id : UUID\lreservation_expires_at : TIMESTAMPTZ\lpaid_by_transaction_id : UUID UNIQUE\lUNIQUE(student_code,semester)\l}"];
+  TX [label="{TRANSACTION (payment_db)|PK id : UUID\lpayer_id : UUID logical\laccount_id : UUID logical\ltuition_fee_id : UUID logical\lstudent_code : VARCHAR snapshot\lstudent_name : VARCHAR snapshot\lsemester : VARCHAR snapshot\lamount : NUMERIC(18,0)\lstatus : VARCHAR\lidempotency_key : VARCHAR\lUNIQUE(payer_id,idempotency_key)\l}"];
+  OTP [label="{OTP (payment_db)|PK id : UUID\lFK transaction_id : UUID UNIQUE\lcode_hmac : VARCHAR\lcode_fingerprint : UNIQUE\lexpires_at : TIMESTAMPTZ\lused : BOOLEAN\lattempts_count : INTEGER\l}"];
+  USER -> ACCOUNT [label="1 : N",arrowhead=crow];
+  ACCOUNT -> DEBIT [label="1 : N",arrowhead=crow];
+  STUDENT -> FEE [label="1 : N",arrowhead=crow];
+  USER -> TX [label="1 : N (logical)",style=dashed,arrowhead=crow];
+  ACCOUNT -> TX [label="1 : N (logical)",style=dashed,arrowhead=crow];
+  FEE -> TX [label="1 : N attempts (logical)",style=dashed,arrowhead=crow];
+  TX -> OTP [label="1 : 0..1",arrowhead=normal];
+  TX -> DEBIT [label="1 : 0..1 (logical)",style=dashed,arrowhead=normal];
+}
